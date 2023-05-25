@@ -2,22 +2,27 @@
 """ Protecting PII """
 
 from typing import List
+import os
 import logging
 import re
-from mysql.connector import connection
+import mysql.connector
 from os import environ
 
 PII_FIELDS = ('name', 'email', 'password', 'ssn', 'phone')
 
+patterns = {
+    'extract': lambda x, y: r'(?P<field>{})=[^{}]*'.format('|'.join(x), y),
+    'replace': lambda x: r'\g<field>={}'.format(x),
+}
 
-def filter_datum(fields: List[str], redaction: str,
-                 message: str, separator: str) -> str:
-    """ returns the log message obfuscated """
-    temp = message
-    for field in fields:
-        temp = re.sub(field + "=.*?" + separator,
-                      field + "=" + redaction + separator, temp)
-    return temp
+
+def filter_datum(
+        fields: List[str], redaction: str, message: str, separator: str,
+        ) -> str:
+    """Filters a log line.
+    """
+    extract, replace = (patterns["extract"], patterns["replace"])
+    return re.sub(extract(fields, separator), replace(redaction), message)
 
 
 def get_logger() -> logging.Logger:
